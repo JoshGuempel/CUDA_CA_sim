@@ -111,21 +111,42 @@ void printUniverse(const int width, const int height, int *universe) {
   std::cout << std::endl;
 }
 
-int main() {
-  int height = BLOCK_SIZE * 4;
-  int width = BLOCK_SIZE * 16;
+void profileRuntimeCPUvsGPU(const int width, const int height, int *&universe,
+                            int *&universeTemp, const int numIterations) {
+  clock_t t;
 
-  int *universe;
-  int *universeTemp;
+  t = clock();
+  for (int i = 0; i < numIterations; i++) {
+    updateUniverseCPU(width, height, universeTemp, universe);
+    int *temp = universeTemp;
+    universeTemp = universe;
+    universe = temp;
+  }
+  t = clock() - t;
 
-  srand(time(NULL));
+  float CPU_runtime_ms = (((float)t) / CLOCKS_PER_SEC) * 1000;
 
-  cudaMallocManaged(&universe, width * height * sizeof(int));
-  cudaMallocManaged(&universeTemp, width * height * sizeof(int));
+  t = clock();
+  for (int i = 0; i < numIterations; i++) {
+    updateUniverseGPU(width, height, universeTemp, universe);
+    int *temp = universeTemp;
+    universeTemp = universe;
+    universe = temp;
+  }
+  t = clock() - t;
 
-  populateUniverse(width, height, universeTemp);
+  float GPU_runtime_ms = (((float)t) / CLOCKS_PER_SEC) * 1000;
 
-  for (int i = 0; i < 400; i++) {
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "CPU Runtime: " << CPU_runtime_ms << " ms" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+  std::cout << "GPU Runtime: " << GPU_runtime_ms << " ms" << std::endl;
+  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+}
+
+void runWithOutput(const int width, const int height, int *&universe,
+                   int *&universeTemp, const int numIterations) {
+  for (int i = 0; i < numIterations; i++) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     system("clear");
     printUniverse(width, height, universeTemp);
@@ -134,10 +155,40 @@ int main() {
     universeTemp = universe;
     universe = temp;
   }
+}
+
+int main() {
+  int height = BLOCK_SIZE * 4;
+  int width = BLOCK_SIZE * 16;
+
+  int *universe;
+  int *universeTemp;
+
+  int numIterations = 0;
+  std::string choice = "";
+
+  srand(time(NULL));
+
+  cudaMallocManaged(&universe, width * height * sizeof(int));
+  cudaMallocManaged(&universeTemp, width * height * sizeof(int));
+
+  populateUniverse(width, height, universeTemp);
+
+  std::cout << "Enter P for profiling mode and O for output mode(O/P): ";
+  std::cin >> choice;
+  std::cout << "Enter number of iterations: ";
+  std::cin >> numIterations;
+  std::cout << "Starting..." << std::endl;
+
+  if (choice == "P" || choice == "p") {
+    profileRuntimeCPUvsGPU(width, height, universe, universeTemp,
+                           numIterations);
+  } else {
+    runWithOutput(width, height, universe, universeTemp, numIterations);
+  }
 
   cudaFree(universe);
   cudaFree(universeTemp);
 
-  std::cout << "done" << std::endl;
   return 0;
 }
