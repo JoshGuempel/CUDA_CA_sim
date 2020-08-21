@@ -5,6 +5,53 @@
 
 #define BLOCK_SIZE 16
 
+// wrap function for device code
+__device__ int wrap_d(int N, int idx) {
+  if (idx <= 0) {
+    return N - 1;
+  } else if (idx >= N - 1) {
+    return 0;
+  }
+  return idx;
+}
+
+__global__ void updateUniverseKernel(const int width, const int height,
+                                     const int *const oldUniverse,
+                                     int *const newUniverse) {
+  int i = (blockIdx.y * blockDim.y) + threadIdx.y;
+  int j = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  int numNeighbors =
+      oldUniverse[wrap_d(height, i - 1) * width + wrap_d(width, j - 1)] +
+      oldUniverse[wrap_d(height, i - 1) * width + wrap_d(width, j)] +
+      oldUniverse[wrap_d(height, i - 1) * width + wrap_d(width, j + 1)] +
+      oldUniverse[wrap_d(height, i) * width + wrap_d(width, j - 1)] +
+      oldUniverse[wrap_d(height, i) * width + wrap_d(width, j + 1)] +
+      oldUniverse[wrap_d(height, i + 1) * width + wrap_d(width, j - 1)] +
+      oldUniverse[wrap_d(height, i + 1) * width + wrap_d(width, j)] +
+      oldUniverse[wrap_d(height, i + 1) * width + wrap_d(width, j + 1)];
+
+  if (oldUniverse[i * width + j] == 1 &&
+      (numNeighbors <= 1 || numNeighbors >= 4)) { // on
+    newUniverse[i * width + j] = 0;
+  } else if (numNeighbors == 3 && oldUniverse[i * width + j] == 0) { // off
+    newUniverse[i * width + j] = 1;
+  } else {
+    newUniverse[i * width + j] = oldUniverse[i * width + j];
+  }
+}
+
+// N is assumed to be a multiple of BLOCK_SIZE
+void updateUniverseGPU(const int width, const int height,
+                       const int *const oldUniverse, int *const newUniverse) {
+  dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 dimGrid(width / dimBlock.x, height / dimBlock.y);
+
+  updateUniverseKernel<<<dimGrid, dimBlock>>>(width, height, oldUniverse,
+                                              newUniverse);
+  cudaDeviceSynchronize();
+}
+
 // wrap function for cpu code
 int wrap(int N, int idx) {
   if (idx <= 0) {
@@ -82,7 +129,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     system("clear");
     printUniverse(width, height, universeTemp);
-    updateUniverseCPU(width, height, universeTemp, universe);
+    updateUniverseGPU(width, height, universeTemp, universe);
     int *temp = universeTemp;
     universeTemp = universe;
     universe = temp;
