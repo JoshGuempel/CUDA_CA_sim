@@ -118,9 +118,7 @@ void profileRuntimeCPUvsGPU(const int width, const int height, int *&universe,
   t = clock();
   for (int i = 0; i < numIterations; i++) {
     updateUniverseCPU(width, height, universeTemp, universe);
-    int *temp = universeTemp;
-    universeTemp = universe;
-    universe = temp;
+    std::swap(universe, universeTemp);
   }
   t = clock() - t;
 
@@ -129,9 +127,7 @@ void profileRuntimeCPUvsGPU(const int width, const int height, int *&universe,
   t = clock();
   for (int i = 0; i < numIterations; i++) {
     updateUniverseGPU(width, height, universeTemp, universe);
-    int *temp = universeTemp;
-    universeTemp = universe;
-    universe = temp;
+    std::swap(universe, universeTemp);
   }
   t = clock() - t;
 
@@ -151,9 +147,7 @@ void runWithOutput(const int width, const int height, int *&universe,
     system("clear");
     printUniverse(width, height, universeTemp);
     updateUniverseGPU(width, height, universeTemp, universe);
-    int *temp = universeTemp;
-    universeTemp = universe;
-    universe = temp;
+    std::swap(universe, universeTemp);
   }
 }
 
