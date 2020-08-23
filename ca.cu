@@ -104,7 +104,7 @@ void populateUniverse(int width, int height, int *universe) {
 void printUniverse(const int width, const int height, int *universe) {
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      std::cout << (universe[i * width + j] == 1 ? "#" : "-");
+      std::cout << (universe[i * width + j] == 1 ? '@' : ' ');
     }
     std::cout << std::endl;
   }
